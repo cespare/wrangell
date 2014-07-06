@@ -3,6 +3,7 @@ package cron
 import (
 	"sort"
 	"testing"
+	"time"
 )
 
 // One []int each for minutes, hours, ...
@@ -80,6 +81,55 @@ func TestParseFail(t *testing.T) {
 	} {
 		if _, err := Parse(expr); err == nil {
 			t.Fatalf("Parse accepted %q, but it is invalid", expr)
+		}
+	}
+}
+
+func TestValid(t *testing.T) {
+	s, err := Parse("* * * * *")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !s.Valid() {
+		t.Fatalf("expected %v to be valid", s)
+	}
+	if new(Schedule).Valid() {
+		t.Fatalf("a blank schedule should not be valid", s)
+	}
+}
+
+type nextTestCase struct {
+	expr   string
+	t1, t2 string
+}
+
+const testTimeLayout = "2006-01-02 15:04"
+
+func TestNext(t *testing.T) {
+	for _, testCase := range []nextTestCase{
+		{"* * * * *", "2014-01-01 00:00", "2014-01-01 00:01"},
+		{"10 * * * *", "2014-01-01 00:00", "2014-01-01 00:10"},
+		{"* 3 3 * *", "2014-01-01 00:00", "2014-01-03 03:00"},
+		{"* * * SEP *", "2014-01-01 00:00", "2014-09-01 00:00"},
+		// June is the first month with the 9th == monday
+		{"* * 9 * Monday", "2014-01-01 00:00", "2014-06-09 00:00"},
+	} {
+		s, err := Parse(testCase.expr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t1, err := time.Parse(testTimeLayout, testCase.t1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t2, err := time.Parse(testTimeLayout, testCase.t2)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := s.Next(t1)
+		if got != t2 {
+			t.Errorf("got next(%q, %q) = %q; want %q", testCase.expr, t1.Format(testTimeLayout),
+				got.Format(testTimeLayout), t2.Format(testTimeLayout))
 		}
 	}
 }

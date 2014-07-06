@@ -8,6 +8,15 @@ import (
 	"time"
 )
 
+// Parse parses a cron expression string. Five fields (minute, hour, day of month, month, day of week) are
+// expected. Valid symbols are
+//
+//   * , - /
+//
+// Month and weekday names (or any unique prefix thereof) may be used in those respective fields (case
+// sensitivity is ignored).
+//
+// Read http://en.wikipedia.org/wiki/Cron for more information about the format.
 func Parse(expr string) (*Schedule, error) {
 	if fieldExpr, ok := namedSchedules[expr]; ok {
 		return parseFields(fieldExpr)
@@ -23,9 +32,72 @@ func Parse(expr string) (*Schedule, error) {
 	return schedule, nil
 }
 
-func (s *Schedule) ToNext(t time.Time) time.Duration {
-	return 0
+// Valid reports whether s is a valid schedule (that is, whether it could correspond to some well-formed cron
+// expression).
+func (s *Schedule) Valid() bool {
+outer:
+	for i, size := range fieldSizes {
+		for j := 0; j < size; j++ {
+			if s.isSet(fieldOffsets[i] + j) {
+				continue outer
+			}
+		}
+		return false
+	}
+	return true
 }
+
+// Next gives the smallest time greater than t when the Schedule is satisfied. Next panics if s is not valid.
+func (s *Schedule) Next(t time.Time) time.Time {
+	if !s.Valid() {
+		panic("Next() called on invalid schedule")
+	}
+	t = t.Truncate(time.Minute).Add(time.Minute) // Start t off at the earliest possible subsequent minute.
+
+	for {
+		if !s.matchesMonth(t) {
+			t = advanceMonth(t)
+			continue
+		}
+		if !s.matchesDay(t) {
+			t = advanceDay(t)
+			continue
+		}
+		if !s.matchesHour(t) {
+			t = advanceHour(t)
+			continue
+		}
+		if !s.matchesMinute(t) {
+			t = advanceMinute(t)
+			continue
+		}
+		return t
+	}
+}
+
+func advanceMonth(t time.Time) time.Time {
+	year, month, _ := t.Date()
+	return time.Date(year, month+1, 1, 0, 0, 0, 0, t.Location())
+}
+
+func advanceDay(t time.Time) time.Time {
+	year, month, day := t.Date()
+	return time.Date(year, month, day+1, 0, 0, 0, 0, t.Location())
+}
+
+func advanceHour(t time.Time) time.Time { return t.Truncate(time.Hour).Add(time.Hour) }
+
+func advanceMinute(t time.Time) time.Time { return t.Truncate(time.Minute).Add(time.Minute) }
+
+func (s *Schedule) matchesMonth(t time.Time) bool { return s.isSet(monthOffset + int(t.Month()) - 1) }
+
+func (s *Schedule) matchesDay(t time.Time) bool {
+	return s.isSet(domOffset+t.Day()-1) && s.isSet(dowOffset+int(t.Weekday()))
+}
+
+func (s *Schedule) matchesHour(t time.Time) bool { return s.isSet(hourOffset + t.Hour()) }
+
+func (s *Schedule) matchesMinute(t time.Time) bool { return s.isSet(minuteOffset + t.Minute()) }
 
 const (
 	// These are in order, LSB first
