@@ -29,6 +29,10 @@ func TestParse(t *testing.T) {
 		{"* * * * MON,WED", testSchedule{nil, nil, nil, nil, {1, 3}}},
 		{"* */6 * * *", testSchedule{nil, {0, 6, 12, 18}, nil, nil, nil}},
 		{"* 6-10/2 * * *", testSchedule{nil, {6, 8, 10}, nil, nil, nil}},
+		{"@monthly", testSchedule{{0}, {0}, {0}, nil, nil}},
+		{"@weekly", testSchedule{{0}, {0}, nil, nil, {0}}},
+		{"@daily", testSchedule{{0}, {0}, nil, nil, nil}},
+		{"@hourly", testSchedule{{0}, nil, nil, nil, nil}},
 	} {
 		s, err := Parse(testCase.expr)
 		if err != nil {
@@ -52,6 +56,30 @@ func TestParse(t *testing.T) {
 					t.Fatalf("got %v; want %v\n", s, testCase.parsed)
 				}
 			}
+		}
+	}
+}
+
+func TestParseFail(t *testing.T) {
+	for _, expr := range []string{
+		"* * * *",
+		"-1 * * * *",
+		"60 * * * *",
+		"* 24 * * *",
+		"* * 0 * *",
+		"* * 32 * *",
+		"* * * 0 *",
+		"* * * 13 *",
+		"* * * J *",
+		"* * * foo *",
+		"* * * * 7",
+		"1 - 3 * * * *",
+		"1-3-7 * * * *",
+		"1/3/7 * * * *",
+		"@foobar",
+	} {
+		if _, err := Parse(expr); err == nil {
+			t.Fatalf("Parse accepted %q, but it is invalid", expr)
 		}
 	}
 }
