@@ -56,9 +56,9 @@ func (r *Repo) Ref(name string) (*Commit, error) {
 			return r.resolveSHA(name)
 		}
 		if len(name) < 40 && len(name) >= 4 {
-			//if c, err := r.resolveSHAPrefix(name); err == nil {
-			//return c, nil
-			//}
+			if c, err := r.resolveSHAPrefix(name); err == nil {
+				return c, nil
+			}
 		}
 	}
 

@@ -77,14 +77,22 @@ func (r *Repo) resolveSHA(ref string) (*Commit, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot locate ref %s in the object store", ref)
 	}
-	if obj.Type != TypeCommit {
-		return nil, fmt.Errorf("bad object type for commit (%s)", ref)
-	}
-	return &Commit{
-		SHA: sha,
-	}, nil
+	return r.commitFromObject(obj)
 }
 
 func (r *Repo) resolveSHAPrefix(prefix string) (*Commit, error) {
-	panic("unimplemented")
+	obj, err := r.objectByPrefix(prefix)
+	if err != nil {
+		return nil, err
+	}
+	return r.commitFromObject(obj)
+}
+
+func (r *Repo) commitFromObject(obj *Object) (*Commit, error) {
+	if obj.Type != TypeCommit {
+		return nil, fmt.Errorf("bad object type for commit (%s)", obj.SHA)
+	}
+	return &Commit{
+		SHA: obj.SHA,
+	}, nil
 }
