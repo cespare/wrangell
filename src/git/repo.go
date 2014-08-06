@@ -2,10 +2,8 @@ package git
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 // A Repo represents a Git repository.
@@ -64,63 +62,39 @@ func (r *Repo) Ref(name string) (*Commit, error) {
 		}
 	}
 
-	for _, path := range []string{
-		filepath.Join(r.gitDir, "refs", name),
-		filepath.Join(r.gitDir, "refs", "tags", name),
-		filepath.Join(r.gitDir, "refs", "heads", name),
-		filepath.Join(r.gitDir, "refs", "remotes", name),
-	} {
-		c, err := r.resolveRefFile(path)
+	paths := []string{
+		"refs/" + name,
+		"refs/tags/" + name,
+		"refs/heads/" + name,
+		"refs/remotes/" + name,
+	}
+	for _, path := range paths {
+		c, err := r.resolveRefFile(filepath.Join(r.gitDir, path))
 		if err == nil {
 			return c, nil
 		}
 		if !os.IsNotExist(err) {
-			return c, err
+			return nil, err
 		}
-		// TODO: check for path in packed-refs
+	}
+	for _, path := range paths {
+		c, err := r.resolvePackedRef(path)
+		if err == nil {
+			return c, nil
+		}
+		if !(os.IsNotExist(err) || err == packedRefNotFoundErr) {
+			return nil, err
+		}
 	}
 	return nil, fmt.Errorf("bad ref name: %s", name)
 }
 
 func maybeHex(s string) bool {
-	for i := range s {
+	for i := 0; i < len(s); i++ {
 		c := s[i]
 		if (c < '0' || c > '9') && (c < 'a' || c > 'f') && (c < 'A' || c > 'F') {
 			return false
 		}
 	}
 	return true
-}
-
-func (r *Repo) resolveSHAPrefix(prefix string) (*Commit, error) {
-	panic("unimplemented")
-}
-
-func (r *Repo) resolveSHA(ref string) (*Commit, error) {
-	// TODO: locate in object store
-	sha, err := makeSHA(ref)
-	if err != nil {
-		return nil, err
-	}
-	return &Commit{
-		sha: sha,
-	}, nil
-}
-
-func (r *Repo) resolveRefFile(path string) (*Commit, error) {
-	contents, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	ref := strings.TrimSpace(string(contents))
-	if strings.IndexByte(ref, '\n') != -1 {
-		return nil, fmt.Errorf("malformed ref file %s", path)
-	}
-	if strings.HasPrefix(ref, "ref: ") {
-		// Named ref
-		refFile := strings.TrimPrefix(ref, "ref: ")
-		return r.resolveRefFile(filepath.Join(r.gitDir, refFile))
-	}
-	// SHA-1
-	return r.resolveSHA(ref)
 }
