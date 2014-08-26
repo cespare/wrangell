@@ -21,6 +21,20 @@ const (
 	TypeBlob
 )
 
+func (t ObjectType) String() string {
+	switch t {
+	case TypeCommit:
+		return "commit"
+	case TypeTree:
+		return "tree"
+	case TypeTag:
+		return "tag"
+	case TypeBlob:
+		return "blob"
+	}
+	panic("unexpected object type")
+}
+
 // An Object is a git object.
 type Object struct {
 	SHA  *SHA
@@ -92,8 +106,10 @@ func (r *Repo) readObject(rdr io.Reader, sha *SHA) (*Object, error) {
 
 	// Read enough to grab the whole header
 	buf := make([]byte, 100)
-	n, err := z.Read(buf)
-	if err != nil {
+	n, err := io.ReadFull(z, buf)
+	switch err {
+	case io.EOF, io.ErrUnexpectedEOF:
+	default:
 		return nil, err
 	}
 	buf = buf[:n]

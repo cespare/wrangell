@@ -90,7 +90,7 @@ func (r *Repo) resolveSHAPrefix(prefix string) (*Commit, error) {
 
 func (r *Repo) commitFromObject(obj *Object) (*Commit, error) {
 	if obj.Type != TypeCommit {
-		return nil, fmt.Errorf("bad object type for commit (%s)", obj.SHA)
+		return nil, fmt.Errorf("bad object type (%s) for commit %s", obj.Type, obj.SHA)
 	}
 	return &Commit{
 		SHA: obj.SHA,
