@@ -108,7 +108,7 @@ func (r *Repo) readObject(rdr io.Reader, sha *SHA) (*Object, error) {
 	buf := make([]byte, 100)
 	n, err := io.ReadFull(z, buf)
 	switch err {
-	case io.EOF, io.ErrUnexpectedEOF:
+	case io.EOF, io.ErrUnexpectedEOF, nil:
 	default:
 		return nil, err
 	}
