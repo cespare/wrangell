@@ -15,10 +15,14 @@ import (
 type ObjectType int
 
 const (
-	TypeCommit ObjectType = iota + 1
-	TypeTree
-	TypeTag
-	TypeBlob
+	// These constants match the type value encoded in 3 bits in the pack format.
+	TypeCommit ObjectType = 1
+	TypeTree   ObjectType = 2
+	TypeBlob   ObjectType = 3
+	TypeTag    ObjectType = 4
+	// The following two are only used for delta encoded objects in packfiles.
+	TypeOfsDelta ObjectType = 6
+	TypeRefDelta ObjectType = 7
 )
 
 func (t ObjectType) String() string {
@@ -27,10 +31,14 @@ func (t ObjectType) String() string {
 		return "commit"
 	case TypeTree:
 		return "tree"
-	case TypeTag:
-		return "tag"
 	case TypeBlob:
 		return "blob"
+	case TypeTag:
+		return "tag"
+	case TypeOfsDelta:
+		return "ofs delta"
+	case TypeRefDelta:
+		return "ref delta"
 	}
 	panic("unexpected object type")
 }
@@ -42,13 +50,22 @@ type Object struct {
 }
 
 var (
-	badObjectFileErr = errors.New("found bad object file")
+	badObjectFileErr  = errors.New("found bad object file")
+	objectNotExistErr = errors.New("object does not exist")
 )
 
 func (r *Repo) objectBySHA(sha *SHA) (*Object, error) {
 	path := filepath.Join(r.gitDir, "objects", hex.EncodeToString((*sha)[:1]), hex.EncodeToString((*sha)[1:]))
 	f, err := os.Open(path)
 	if err != nil {
+		if os.IsNotExist(err) {
+			// Is it packed?
+			obj, err := r.packedObjectBySHA(sha)
+			if os.IsNotExist(err) {
+				return nil, objectNotExistErr
+			}
+			return obj, err
+		}
 		return nil, err
 	}
 	defer f.Close()
@@ -124,10 +141,10 @@ func (r *Repo) readObject(rdr io.Reader, sha *SHA) (*Object, error) {
 		typ = TypeCommit
 	case "tree":
 		typ = TypeTree
-	case "tag":
-		typ = TypeTag
 	case "blob":
 		typ = TypeBlob
+	case "tag":
+		typ = TypeTag
 	default:
 		return nil, badObjectFileErr
 	}
