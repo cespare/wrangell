@@ -47,5 +47,5 @@ func gitExec(dir string, args ...string) (stdout, stderr []byte, err error) {
 
 // exec runs some git command in the repo root.
 func (r *Repo) exec(args ...string) (stdout, stderr []byte, err error) {
-	return gitExec(r.gitDir, args...)
+	return gitExec(r.workTree, args...)
 }
