@@ -59,6 +59,7 @@ func (r *Repo) Ref(name string) (*Commit, error) {
 			if c, err := r.resolveSHAPrefix(name); err == nil {
 				return c, nil
 			}
+			// TODO: Locate prefixes in the packfile
 		}
 	}
 

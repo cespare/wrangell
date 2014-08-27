@@ -1,3 +1,8 @@
 {
-	"deps": null
+	"deps": [
+		{
+			"name": "github.com/edsrzf/mmap-go",
+			"rev": "bd26bc5e78d34f2b0804f1e27400ac33d243d69b"
+		}
+	]
 }

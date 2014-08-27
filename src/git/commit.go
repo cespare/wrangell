@@ -39,6 +39,9 @@ var (
 	badPackedRefsFile    = errors.New("malformed packed-refs file")
 )
 
+// TODO: It seems like the packed-refs file is always ordered by the ref, so we could potentially find packed
+// refs much faster by mmaping the file and binary searching. But this is tricky because the lines aren't the
+// same length.
 func (r *Repo) resolvePackedRef(path string) (*Commit, error) {
 	pathBytes := []byte(path)
 	f, err := os.Open(filepath.Join(r.gitDir, "packed-refs"))
@@ -75,7 +78,10 @@ func (r *Repo) resolveSHA(ref string) (*Commit, error) {
 	}
 	obj, err := r.objectBySHA(sha)
 	if err != nil {
-		return nil, fmt.Errorf("cannot locate ref %s in the object store", ref)
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("cannot locate ref %s in the object store", ref)
+		}
+		return nil, err
 	}
 	return r.commitFromObject(obj)
 }
